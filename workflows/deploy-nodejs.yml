@@ -1,0 +1,38 @@
+name: Deploy to server
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  REMOTE_DIRECTORY: /var/..
+  PM2_PROCESS_NAME: some-name
+  NPM_START_SCRIPT_NAME: start
+  SSH_HOST: ${{ secrets.SSH_HOST }}
+  SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+  SSH_KEY: ${{ secrets.SSH_KEY }}
+  GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Checkout
+        uses: actions/checkout@v3
+
+      - name: Deploy to server and start the project
+        uses: appleboy/ssh-action@v1.0.2
+        with:
+          host: ${{ env.SSH_HOST }}
+          user: ${{ env.SSH_USERNAME }}
+          key: ${{ env.SSH_KEY }}
+          script: |
+            rm -rf ${{ env.REMOTE_DIRECTORY }} | true
+            mkdir ${{ env.REMOTE_DIRECTORY }}
+            cd ${{ env.REMOTE_DIRECTORY }}
+            git clone https://${{ env.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git .
+            npm install
+            pm2 delete ${{ env.PM2_PROCESS_NAME }} || true
+            pm2 start npm --name "${{ env.PM2_PROCESS_NAME }}" -- run ${{ env.NPM_START_SCRIPT_NAME }}
